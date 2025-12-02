@@ -245,7 +245,8 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
               )}
             </div>
           </div>
-          
+        </div>
+
           <Button
             onClick={handleScanClick}
             disabled={loading || scanStatus === "success"}
