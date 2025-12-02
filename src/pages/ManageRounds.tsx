@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Download, Eye, Trash2, QrCode, Play, Pause, Flag } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -24,19 +23,11 @@ type Round = {
   unlockCode: string;
   createdAt: string;
   timerStatus?: "idle" | "running" | "paused" | "finished";
-  timerStartAt?: string | null;
-  accumulatedSeconds?: number;
+  elapsedSeconds?: number;
 };
 
 const ManageRounds = () => {
   const queryClient = useQueryClient();
-  const [now, setNow] = useState<Date>(() => new Date());
-
-  // Tick local clock so we can show live timer without hammering the API
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const { data, isLoading } = useQuery<Round[]>({
     queryKey: ["rounds"],
@@ -83,16 +74,6 @@ const ManageRounds = () => {
     const mins = Math.floor(total / 60);
     const secs = total % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const computeElapsed = (round: Round) => {
-    const base = round.accumulatedSeconds ?? 0;
-    if (round.timerStatus === "running" && round.timerStartAt) {
-      const started = new Date(round.timerStartAt).getTime();
-      const extra = (now.getTime() - started) / 1000;
-      return base + (extra > 0 ? extra : 0);
-    }
-    return base;
   };
 
   const handleDownloadQrInfo = (round: Round) => {
@@ -164,7 +145,7 @@ const ManageRounds = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">Timer:</span>
                       <Badge variant="outline">
-                        {formatDuration(computeElapsed(round))}
+                        {formatDuration(round.elapsedSeconds ?? 0)}
                       </Badge>
                       {round.timerStatus && (
                         <span className="text-xs uppercase text-muted-foreground">

@@ -29,9 +29,26 @@ export const createRound = asyncHandler(async (req, res) => {
   res.status(201).json(round);
 });
 
+const computeElapsedSeconds = (round) => {
+  const base = round.accumulatedSeconds ?? 0;
+
+  if (round.timerStatus === 'running' && round.timerStartAt) {
+    return base + (Date.now() - round.timerStartAt.getTime()) / 1000;
+  }
+
+  return base;
+};
+
 export const listRounds = asyncHandler(async (_req, res) => {
   const rounds = await Round.find().sort({ roundNumber: 1 });
-  res.json(rounds);
+
+  const enriched = rounds.map((round) => {
+    const obj = round.toObject();
+    obj.elapsedSeconds = computeElapsedSeconds(round);
+    return obj;
+  });
+
+  res.json(enriched);
 });
 
 export const getRound = asyncHandler(async (req, res) => {
