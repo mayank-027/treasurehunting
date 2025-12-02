@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Camera, CheckCircle, XCircle } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,45 +13,15 @@ interface QRScannerProps {
   onSuccess: () => void;
 }
 
-type CameraDevice = { id: string; label: string };
-
 const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   const [manualCode, setManualCode] = useState("");
   const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle");
   const [loading, setLoading] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [availableCameras, setAvailableCameras] = useState<CameraDevice[] | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scanAreaRef = useRef<HTMLDivElement>(null);
-
-  const stopScanner = async () => {
-    const scanner = scannerRef.current;
-    if (!scanner) return;
-
-    try {
-      // Stop only if a scan was started
-      await scanner.stop();
-    } catch (err) {
-      // Ignore “Cannot stop while not scanning”-type errors
-      console.warn("Error while stopping scanner:", err);
-    }
-
-    try {
-      await scanner.clear();
-    } catch (err) {
-      // Ignore “Cannot clear while scan is ongoing” or DOM errors
-      console.warn("Error while clearing scanner:", err);
-    }
-
-    scannerRef.current = null;
-    setIsScanning(false);
-  };
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const hasRenderedScannerRef = useRef(false);
 
   const verifyQr = async (qrId: string) => {
-    // Stop camera if scanning (ignore errors)
-    await stopScanner();
-
     setLoading(true);
     try {
       await apiFetch("/game/qr-scan", {
@@ -80,72 +50,51 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
     verifyQr(manualCode);
   };
 
-  const startCameraScan = async () => {
-    if (isScanning) return;
-
-    try {
-      const scannerId = "qr-scanner";
-      if (!scanAreaRef.current) {
-        toast.error("Scanner area not found");
-        return;
-      }
-
-      const html5QrCode = new Html5Qrcode(scannerId);
-      scannerRef.current = html5QrCode;
-
-      await html5QrCode.start(
-        { facingMode: "environment" }, // Use back camera when available
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        (decodedText) => {
-          // QR code scanned successfully
-          html5QrCode.stop().catch(() => {});
-          setIsScanning(false);
-          verifyQr(decodedText);
-        },
-        () => {
-          // Ignore continuous scan errors
-        }
-      );
-
-      setIsScanning(true);
-      setCameraError(null);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to start camera. Check camera permissions.";
-      setCameraError(message);
-      toast.error(message);
-      setIsScanning(false);
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-    }
-  };
-
-  const stopCameraScan = async () => {
-    await stopScanner();
-    setIsScanning(false);
-    setCameraError(null);
-  };
-
   useEffect(() => {
-    // Cleanup on unmount
-    return () => {
-      // Best-effort cleanup; ignore errors
-      stopScanner().catch(() => {});
-    };
-  }, []);
+    if (hasRenderedScannerRef.current) return;
+    hasRenderedScannerRef.current = true;
 
-  const handleScanClick = () => {
-    if (isScanning) {
-      stopCameraScan();
-    } else {
-      startCameraScan();
+    // Only run in browser
+    if (typeof window === "undefined") return;
+
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+    };
+
+    const scanner = new Html5QrcodeScanner("qr-scanner", config, false);
+    scannerRef.current = scanner;
+
+    scanner.render(
+      async (decodedText) => {
+        // On successful scan, stop scanner UI then verify QR
+        try {
+          await scanner.clear();
+        } catch (err) {
+          console.warn("Error clearing scanner after success:", err);
+        }
+
+        setCameraError(null);
+        setScanStatus("success");
+        verifyQr(decodedText);
+      },
+      (errorMessage) => {
+        // Ignore normal scanning errors; log only unexpected ones
+        if (errorMessage && !String(errorMessage).includes("QR code parse error")) {
+          console.warn("QR scan error:", errorMessage);
+        }
+      }
+    );
+
+    return () => {
+      // Cleanup scanner on unmount
+      if (scannerRef.current) {
+        scannerRef.current
+          .clear()
+          .catch((err) => console.warn("Error clearing scanner on unmount:", err));
+      }
     }
-  };
+  }, []);
 
   return (
     <Card className="p-6 shadow-elevated">
@@ -155,56 +104,24 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
         {/* Camera Scanner */}
         <div>
           <div className="relative bg-muted rounded-lg overflow-hidden mb-4">
-            <div 
-              id="qr-scanner"
-              ref={scanAreaRef}
-              className="aspect-video flex items-center justify-center bg-gradient-to-br from-muted to-muted/50"
-            >
-              {!isScanning && scanStatus === "idle" && (
-                <div className="text-center">
-                  <Camera className="w-24 h-24 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Click \"Start Camera\" to scan QR code</p>
-                </div>
-              )}
-              {!isScanning && scanStatus === "success" && (
-                <div className="text-center animate-scale-in">
-                  <CheckCircle className="w-24 h-24 text-success mx-auto mb-2" />
-                  <p className="text-success font-semibold">Correct Location!</p>
-                </div>
-              )}
-              {!isScanning && scanStatus === "error" && (
-                <div className="text-center animate-scale-in">
-                  <XCircle className="w-24 h-24 text-destructive mx-auto mb-2" />
-                  <p className="text-destructive font-semibold">Wrong Location!</p>
-                </div>
-              )}
-              {cameraError && (
-                <div className="text-center p-4">
-                  <p className="text-sm text-destructive mb-2">{cameraError}</p>
-                  <p className="text-xs text-muted-foreground">You can still enter the QR ID manually below</p>
-                </div>
-              )}
-            </div>
+            {/* Html5QrcodeScanner renders its own UI and video inside this div */}
+            <div id="qr-scanner" className="aspect-video" />
           </div>
 
-          <Button
-            onClick={handleScanClick}
-            disabled={loading || scanStatus === "success"}
-            className="w-full gradient-primary hover:opacity-90 shadow-glow"
-          >
-            <Camera className="w-4 h-4 mr-2" />
-            {loading 
-              ? "Verifying..." 
-              : isScanning 
-                ? "Stop Camera" 
-                : scanStatus === "success"
-                  ? "Location Verified"
-                  : "Start Camera Scan"}
-          </Button>
-          {isScanning && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Point your camera at the QR code
-            </p>
+          {scanStatus === "success" && (
+            <div className="text-center animate-scale-in mb-2">
+              <CheckCircle className="w-10 h-10 text-success mx-auto mb-1" />
+              <p className="text-success text-sm font-semibold">QR code scanned! Verifying...</p>
+            </div>
+          )}
+
+          {cameraError && (
+            <div className="text-center p-2">
+              <p className="text-sm text-destructive mb-1">{cameraError}</p>
+              <p className="text-xs text-muted-foreground">
+                If camera keeps failing, you can still enter the QR ID manually below.
+              </p>
+            </div>
           )}
         </div>
 
