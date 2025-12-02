@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Gaming-inspired design system with teal/cyan and amber/gold colors */
+
+@layer base {
+  :root {
+    --background: 210 25% 98%;
+    --foreground: 195 80% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 195 80% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 195 80% 10%;
+
+    --primary: 186 82% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 42 96% 55%;
+    --secondary-foreground: 30 20% 15%;
+
+    --muted: 188 30% 92%;
+    --muted-foreground: 195 15% 40%;
+
+    --accent: 42 96% 55%;
+    --accent-foreground: 30 20% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 188 20% 88%;
+    --input: 188 20% 88%;
+    --ring: 186 82% 40%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(186 82% 40%), hsl(193 85% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(42 96% 55%), hsl(38 92% 50%));
+    --gradient-surface: linear-gradient(180deg, hsl(210 25% 98%), hsl(188 30% 96%));
+    
+    --shadow-glow: 0 0 30px hsl(186 82% 40% / 0.3);
+    --shadow-glow-accent: 0 0 30px hsl(42 96% 55% / 0.3);
+    --shadow-elevated: 0 10px 40px -10px hsl(195 80% 10% / 0.15);
+  }
+
+  .dark {
+    --background: 195 80% 8%;
+    --foreground: 188 30% 95%;
+
+    --card: 195 70% 12%;
+    --card-foreground: 188 30% 95%;
+
+    --popover: 195 70% 12%;
+    --popover-foreground: 188 30% 95%;
+
+    --primary: 186 82% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 42 96% 55%;
+    --secondary-foreground: 30 20% 15%;
+
+    --muted: 195 50% 18%;
+    --muted-foreground: 188 20% 60%;
+
+    --accent: 42 96% 55%;
+    --accent-foreground: 30 20% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 195 50% 20%;
+    --input: 195 50% 20%;
+    --ring: 186 82% 50%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(186 82% 40%), hsl(193 85% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(42 96% 55%), hsl(38 92% 50%));
+    --gradient-surface: linear-gradient(180deg, hsl(195 80% 8%), hsl(195 70% 12%));
+    
+    --shadow-glow: 0 0 40px hsl(186 82% 50% / 0.4);
+    --shadow-glow-accent: 0 0 40px hsl(42 96% 55% / 0.4);
+    --shadow-elevated: 0 10px 50px -10px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+  
+  .gradient-surface {
+    background: var(--gradient-surface);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-glow-accent {
+    box-shadow: var(--shadow-glow-accent);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .text-gradient-primary {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-accent {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
