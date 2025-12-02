@@ -25,18 +25,32 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanAreaRef = useRef<HTMLDivElement>(null);
 
-  const verifyQr = async (qrId: string) => {
-    // Stop camera if scanning
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-        scannerRef.current = null;
-        setIsScanning(false);
-      } catch (err) {
-        console.error("Error stopping scanner:", err);
-      }
+  const stopScanner = async () => {
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+
+    try {
+      // Stop only if a scan was started
+      await scanner.stop();
+    } catch (err) {
+      // Ignore “Cannot stop while not scanning”-type errors
+      console.warn("Error while stopping scanner:", err);
     }
+
+    try {
+      await scanner.clear();
+    } catch (err) {
+      // Ignore “Cannot clear while scan is ongoing” or DOM errors
+      console.warn("Error while clearing scanner:", err);
+    }
+
+    scannerRef.current = null;
+    setIsScanning(false);
+  };
+
+  const verifyQr = async (qrId: string) => {
+    // Stop camera if scanning (ignore errors)
+    await stopScanner();
 
     setLoading(true);
     try {
@@ -79,23 +93,8 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
       const html5QrCode = new Html5Qrcode(scannerId);
       scannerRef.current = html5QrCode;
 
-      // Get cameras AFTER user gesture (button click) for mobile compatibility
-      const cameras = await Html5Qrcode.getCameras();
-      setAvailableCameras(cameras);
-
-      if (!cameras || cameras.length === 0) {
-        setCameraError("No camera found on this device. You can still enter the code manually.");
-        await html5QrCode.clear();
-        scannerRef.current = null;
-        return;
-      }
-
-      // Prefer back camera if available
-      const preferredCamera =
-        cameras.find((cam) => cam.label.toLowerCase().includes("back")) ?? cameras[0];
-
       await html5QrCode.start(
-        preferredCamera.id, // Use specific deviceId string (best for mobile)
+        { facingMode: "environment" }, // Use back camera when available
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -127,15 +126,7 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   };
 
   const stopCameraScan = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (err) {
-        console.error("Error stopping scanner:", err);
-      }
-    }
+    await stopScanner();
     setIsScanning(false);
     setCameraError(null);
   };
@@ -143,10 +134,8 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   useEffect(() => {
     // Cleanup on unmount
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current.clear();
-      }
+      // Best-effort cleanup; ignore errors
+      stopScanner().catch(() => {});
     };
   }, []);
 
