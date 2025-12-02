@@ -19,7 +19,7 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           <Card className="p-8 text-center hover:shadow-glow transition-all duration-300 animate-scale-in border-2">
             <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
             <h2 className="text-2xl font-bold mb-3">Admin Panel</h2>
@@ -53,18 +53,6 @@ const Index = () => {
             </div>
           </Card>
 
-          <Card className="p-8 text-center hover:shadow-elevated transition-all duration-300 animate-scale-in border-2" style={{ animationDelay: "0.2s" }}>
-            <Trophy className="w-16 h-16 mx-auto mb-4 text-primary" />
-            <h2 className="text-2xl font-bold mb-3">Instructor View</h2>
-            <p className="text-muted-foreground mb-6">
-              Monitor progress, view leaderboard, and broadcast codes
-            </p>
-            <Link to="/instructor">
-              <Button variant="outline" className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                Instructor Panel
-              </Button>
-            </Link>
-          </Card>
         </div>
 
         <div className="mt-16 text-center">
