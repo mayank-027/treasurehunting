@@ -31,7 +31,20 @@ const sanitizeTeam = (team) => ({
   name: team.name,
   status: team.status,
   currentRoundNumber: team.currentRoundNumber,
+  totalTimeSeconds: team.totalTimeSeconds,
 });
+
+const getRoundElapsedSeconds = (round) => {
+  if (!round) return 0;
+
+  const base = round.accumulatedSeconds ?? 0;
+
+  if (round.timerStatus === 'running' && round.timerStartAt) {
+    return base + (Date.now() - round.timerStartAt.getTime()) / 1000;
+  }
+
+  return base;
+};
 
 export const startGame = asyncHandler(async (req, res) => {
   const payload = startSchema.parse(req.body);
@@ -84,6 +97,15 @@ export const verifyQrScan = asyncHandler(async (req, res) => {
     throw httpError(400, 'Team is not currently playing');
   }
 
+  const round = await findRoundOrThrow(team.currentRoundNumber);
+
+  // Only accept scans while the round timer is actively running
+  if (round.timerStatus !== 'running') {
+    throw httpError(400, 'Round timer is not running. Scan not accepted.');
+  }
+
+  const elapsedSeconds = getRoundElapsedSeconds(round);
+
   const assignment = await ClueAssignment.findOne({
     qrId: payload.qrId,
     teamIds: team._id,
@@ -98,6 +120,7 @@ export const verifyQrScan = asyncHandler(async (req, res) => {
   if (progress) {
     progress.status = 'qr_found';
     progress.qrScanTime = new Date();
+    progress.timeSeconds = elapsedSeconds;
   }
   team.status = 'locked';
   team.lastScanTime = new Date();
@@ -116,8 +139,8 @@ const unlockSchema = z.object({
 
 const computeTotalTime = (team) => {
   return team.progress.reduce((total, entry) => {
-    if (entry.unlockTime && entry.qrScanTime) {
-      return total + (entry.unlockTime.getTime() - entry.qrScanTime.getTime()) / 1000;
+    if (typeof entry.timeSeconds === 'number') {
+      return total + entry.timeSeconds;
     }
     return total;
   }, 0);
@@ -150,13 +173,6 @@ export const unlockNextRound = asyncHandler(async (req, res) => {
   const progress = team.progress.find((p) => p.roundNumber === activeRound.roundNumber);
   if (progress) {
     progress.status = 'unlocked';
-    progress.unlockTime = new Date();
-
-    if (progress.qrScanTime && assignment?.timeLimitSeconds) {
-      const durationSeconds =
-        (progress.unlockTime.getTime() - progress.qrScanTime.getTime()) / 1000;
-      progress.qualified = durationSeconds <= assignment.timeLimitSeconds;
-    }
   }
 
   const nextRound = await Round.findOne({ roundNumber: activeRound.roundNumber + 1 });

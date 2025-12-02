@@ -9,7 +9,6 @@ const clueAssignmentSchema = new Schema(
     unlockCode: { type: String, required: true, unique: true },
     qrId: { type: String, required: true, unique: true },
     teamIds: { type: [Types.ObjectId], ref: 'Team', required: true },
-    timeLimitSeconds: { type: Number, required: true }, // max allowed time from QR scan to unlock
   },
   { timestamps: true },
 );

@@ -9,8 +9,9 @@ const progressSchema = new Schema(
       default: 'pending',
     },
     qrScanTime: { type: Date },
-    unlockTime: { type: Date },
-    qualified: { type: Boolean }, // whether the team met the time limit for this round
+    // Total time (in seconds) for this round when QR was scanned,
+    // based on the admin-controlled round timer
+    timeSeconds: { type: Number },
   },
   { _id: false },
 );

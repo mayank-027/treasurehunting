@@ -67,3 +67,61 @@ export const deleteRound = asyncHandler(async (req, res) => {
   res.status(204).send();
 });
 
+const timerActionSchema = z.object({
+  action: z.enum(['start', 'pause', 'resume', 'finish']),
+});
+
+export const updateRoundTimer = asyncHandler(async (req, res) => {
+  const payload = timerActionSchema.parse(req.body);
+  const round = await Round.findById(req.params.id);
+
+  if (!round) {
+    throw httpError(404, 'Round not found');
+  }
+
+  const now = new Date();
+  round.accumulatedSeconds = round.accumulatedSeconds ?? 0;
+
+  switch (payload.action) {
+    case 'start': {
+      // Reset and start timer for this round
+      round.accumulatedSeconds = 0;
+      round.timerStartAt = now;
+      round.timerStatus = 'running';
+      break;
+    }
+    case 'pause': {
+      if (round.timerStatus === 'running' && round.timerStartAt) {
+        round.accumulatedSeconds +=
+          (now.getTime() - round.timerStartAt.getTime()) / 1000;
+      }
+      round.timerStartAt = undefined;
+      round.timerStatus = 'paused';
+      break;
+    }
+    case 'resume': {
+      if (round.timerStatus !== 'running') {
+        round.timerStartAt = now;
+        round.timerStatus = 'running';
+      }
+      break;
+    }
+    case 'finish': {
+      if (round.timerStatus === 'running' && round.timerStartAt) {
+        round.accumulatedSeconds +=
+          (now.getTime() - round.timerStartAt.getTime()) / 1000;
+      }
+      round.timerStartAt = undefined;
+      round.timerStatus = 'finished';
+      break;
+    }
+    default: {
+      throw httpError(400, 'Invalid timer action');
+    }
+  }
+
+  await round.save();
+
+  res.json(round);
+});
+
