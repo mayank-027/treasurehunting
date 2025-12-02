@@ -42,7 +42,9 @@ export const createServer = () => {
     env.CLIENT_URL && env.CLIENT_URL.includes('vercel.app') 
       ? new RegExp(`^https://.*${env.CLIENT_URL.replace(/^https?:\/\//, '').split('.')[0]}.*\\.vercel\\.app$`)
       : null,
-  ].filter(Boolean); // Remove null/undefined values
+  ];
+
+  const validOrigins = allowedOrigins.filter(Boolean); // Remove null/undefined values
 
   app.use(
     cors({
