@@ -158,7 +158,7 @@ const ManageRounds = () => {
 
                 <div className="flex flex-col items-end gap-2 ml-4 min-w-[160px]">
                   <div className="flex gap-2">
-                    {round.timerStatus === "running" ? (
+                    {round.timerStatus === "running" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -168,7 +168,8 @@ const ManageRounds = () => {
                         <Pause className="w-4 h-4 mr-1" />
                         Pause
                       </Button>
-                    ) : round.timerStatus === "paused" || round.timerStatus === "idle" || !round.timerStatus ? (
+                    )}
+                    {(round.timerStatus === "idle" || !round.timerStatus) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -176,11 +177,22 @@ const ManageRounds = () => {
                         disabled={timerMutation.isPending}
                       >
                         <Play className="w-4 h-4 mr-1" />
-                        {round.timerStatus === "paused" ? "Restart" : "Start"}
+                        Start
                       </Button>
-                    ) : null}
+                    )}
+                    {round.timerStatus === "paused" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => timerMutation.mutate({ id: round._id, action: "resume" })}
+                        disabled={timerMutation.isPending}
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        Resume
+                      </Button>
+                    )}
 
-                    {round.timerStatus === "paused" || round.timerStatus === "running" ? (
+                    {(round.timerStatus === "paused" || round.timerStatus === "running") && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -191,7 +203,7 @@ const ManageRounds = () => {
                         <Flag className="w-4 h-4 mr-1" />
                         Finish
                       </Button>
-                    ) : null}
+                    )}
                   </div>
 
                   <div className="flex gap-2">
