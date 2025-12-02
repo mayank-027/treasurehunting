@@ -13,12 +13,15 @@ interface QRScannerProps {
   onSuccess: () => void;
 }
 
+type CameraDevice = { id: string; label: string };
+
 const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   const [manualCode, setManualCode] = useState("");
   const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle");
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<CameraDevice[] | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanAreaRef = useRef<HTMLDivElement>(null);
 
@@ -76,8 +79,23 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
       const html5QrCode = new Html5Qrcode(scannerId);
       scannerRef.current = html5QrCode;
 
+      // Get cameras AFTER user gesture (button click) for mobile compatibility
+      const cameras = await Html5Qrcode.getCameras();
+      setAvailableCameras(cameras);
+
+      if (!cameras || cameras.length === 0) {
+        setCameraError("No camera found on this device. You can still enter the code manually.");
+        await html5QrCode.clear();
+        scannerRef.current = null;
+        return;
+      }
+
+      // Prefer back camera if available
+      const preferredCamera =
+        cameras.find((cam) => cam.label.toLowerCase().includes("back")) ?? cameras[0];
+
       await html5QrCode.start(
-        { facingMode: "environment" }, // Use back camera on mobile when available
+        preferredCamera.id, // Use specific deviceId string (best for mobile)
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
