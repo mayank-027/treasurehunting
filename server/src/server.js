@@ -36,14 +36,13 @@ export const createServer = () => {
     'http://localhost:5173',
     'http://localhost:8080',
     'http://localhost:3000',
-    // Allow Vercel preview deployments
-    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-    // Allow any Vercel preview URL pattern
+    // Vercel preview URLs (wildcard pattern for all Vercel deployments)
     /^https:\/\/.*\.vercel\.app$/,
-  ];
-
-  // If CLIENT_URL is set to '*' or empty, allow all origins (for separate deployment setup)
-  const allowAllOrigins = !env.CLIENT_URL || env.CLIENT_URL === '*';
+    // Support Vercel preview deployments (if CLIENT_URL contains vercel.app)
+    env.CLIENT_URL && env.CLIENT_URL.includes('vercel.app') 
+      ? new RegExp(`^https://.*${env.CLIENT_URL.replace(/^https?:\/\//, '').split('.')[0]}.*\\.vercel\\.app$`)
+      : null,
+  ].filter(Boolean); // Remove null/undefined values
 
   app.use(
     cors({
@@ -53,14 +52,10 @@ export const createServer = () => {
           return callback(null, true);
         }
         
-        // If allowAllOrigins is true (CLIENT_URL is '*' or empty), allow all
-        if (allowAllOrigins) {
-          return callback(null, true);
-        }
-        
         // Check if origin is in allowed list
-        const isAllowed = allowedOrigins.some((allowedOrigin) => {
+        const isAllowed = validOrigins.some((allowedOrigin) => {
           if (typeof allowedOrigin === 'string') {
+            // Exact match for string origins
             return origin === allowedOrigin;
           }
           if (allowedOrigin instanceof RegExp) {
@@ -76,13 +71,27 @@ export const createServer = () => {
           if (env.NODE_ENV === 'development') {
             callback(null, true);
           } else {
+            // Log the rejected origin for debugging
+            console.warn(`CORS: Origin not allowed: ${origin}`);
             callback(new Error('Not allowed by CORS'));
           }
         }
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers',
+      ],
+      exposedHeaders: ['Authorization'],
+      maxAge: 86400, // 24 hours - cache preflight requests
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     }),
   );
   

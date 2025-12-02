@@ -4,9 +4,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ??
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("adminToken");
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...(options.headers as Record<string, string> || {}),
   };
 
   if (token) {
@@ -16,6 +16,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include', // Include credentials for CORS
   });
 
   if (!res.ok) {
