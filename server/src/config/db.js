@@ -16,12 +16,14 @@ export const connectToDatabase = async () => {
     await mongoose.connection.close();
   }
 
-  // Optimize connection options
+  // Optimize connection options for serverless
   const options = {
     autoIndex: env.NODE_ENV === 'development', // Only auto-index in development
-    maxPoolSize: 10, // Maintain up to 10 socket connections
-    serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-    socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+    maxPoolSize: 1, // Single connection for serverless (reduces connection overhead)
+    minPoolSize: 0, // Allow connection pool to close completely
+    serverSelectionTimeoutMS: 3000, // Faster timeout for serverless
+    socketTimeoutMS: 10000, // Shorter timeout for serverless
+    connectTimeoutMS: 3000, // Fast connection timeout
   };
 
   try {

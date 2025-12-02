@@ -40,8 +40,18 @@ const initServerlessHandler = async () => {
     });
   }
 
-  // Wait for database connection
-  await dbConnectionPromise;
+  // Wait for database connection with timeout to prevent blocking
+  try {
+    await Promise.race([
+      dbConnectionPromise,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('DB connection timeout')), 3000)
+      )
+    ]);
+  } catch (error) {
+    // If connection times out, continue anyway - Mongoose will retry on first query
+    console.warn('Database connection not ready yet, will retry on first query');
+  }
 
   // Create serverless handler if not cached
   if (!handler) {
@@ -67,7 +77,7 @@ export default async function vercelHandler(req, res) {
         message: 'Request took too long to process'
       });
     }
-  }, 25000); // 25 seconds (safe for Pro tier)
+  }, 8000); // 8 seconds (safe for free tier, works on Pro too)
 
   try {
     // Initialize handler (cached after first call)
@@ -104,6 +114,6 @@ export default async function vercelHandler(req, res) {
 }
 
 export const config = {
-  maxDuration: 30,
+  maxDuration: 10,
 };
 
