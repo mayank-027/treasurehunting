@@ -120,5 +120,6 @@ export default async function vercelHandler(req, res) {
 
 export const config = {
   maxDuration: 10,
+  runtime: 'nodejs20.x',
 };
 

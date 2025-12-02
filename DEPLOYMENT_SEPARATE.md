@@ -32,14 +32,21 @@ vercel
 
 1. Go to [vercel.com](https://vercel.com)
 2. Click "New Project"
-3. **Important**: Set **Root Directory** to `server`
-4. Import your Git repository
-5. Vercel will auto-detect:
-   - Framework: Other
-   - Build Command: (leave empty or use `echo 'No build needed'`)
-   - Output Directory: (leave empty)
+3. Import your Git repository
+4. **CRITICAL**: Set **Root Directory** to `server`
+5. Vercel Settings:
+   - **Framework Preset**: Other
+   - **Build Command**: Leave EMPTY (no build needed)
+   - **Output Directory**: Leave EMPTY (no output directory)
+   - **Install Command**: `npm install`
 6. Add environment variables (see below)
 7. Click "Deploy"
+
+**Important Notes:**
+- Root Directory MUST be set to `server`
+- Build Command MUST be empty
+- Output Directory MUST be empty
+- Vercel will auto-detect serverless functions from `api/` folder
 
 ### Step 3: Backend Environment Variables
 
@@ -50,18 +57,19 @@ MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/treasure-hunt
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=your-secure-password
 JWT_SECRET=your-very-secure-secret-key-min-32-chars
-CLIENT_URL=https://your-frontend.vercel.app
+CLIENT_URL=*
 NODE_ENV=production
 ```
 
 **Important**: 
-- `CLIENT_URL` should be your frontend URL (set this after frontend is deployed)
-- For now, you can set it to `*` temporarily to allow all origins
+- `CLIENT_URL` set to `*` temporarily (allows all origins)
+- Update this to your frontend URL after frontend is deployed
 
 ### Step 4: Note Your Backend URL
 
 After deployment, note your backend URL:
 - Example: `https://treasure-hunt-api.vercel.app`
+- Test it: `https://your-backend.vercel.app/api/health`
 - This will be used in the frontend configuration
 
 ---
@@ -70,20 +78,21 @@ After deployment, note your backend URL:
 
 ### Step 1: Update Frontend API Configuration
 
-Update `src/lib/api.ts` to point to your backend URL:
+**Option A: Using Environment Variable (Recommended)**
 
+In Vercel Dashboard → Frontend Project → Settings → Environment Variables:
+```
+VITE_API_URL=https://your-backend-url.vercel.app/api
+```
+
+**Option B: Update Code Directly**
+
+Update `src/lib/api.ts`:
 ```typescript
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 
   (import.meta.env.PROD 
     ? "https://your-backend-url.vercel.app/api"  // Replace with your backend URL
     : "http://localhost:5000/api");
-```
-
-Or set it via environment variable (recommended):
-
-Create `.env.production`:
-```
-VITE_API_URL=https://your-backend-url.vercel.app/api
 ```
 
 ### Step 2: Deploy Frontend to Vercel
@@ -100,21 +109,21 @@ vercel
 1. Go to [vercel.com](https://vercel.com)
 2. Click "New Project"
 3. Import your Git repository
-4. **Important**: Set **Root Directory** to `.` (root)
+4. **Root Directory**: `.` (root - leave default)
 5. Vercel will auto-detect:
    - Framework: Vite
    - Build Command: `npm run build`
    - Output Directory: `dist`
-6. Add environment variable (optional):
-   - `VITE_API_URL`: Your backend API URL
+6. Add environment variable:
+   - `VITE_API_URL`: Your backend API URL (e.g., `https://your-backend.vercel.app/api`)
 7. Click "Deploy"
 
 ### Step 3: Update Backend CORS
 
-After frontend is deployed, update backend's `CLIENT_URL` environment variable:
-- Go to Backend Vercel Project → Settings → Environment Variables
-- Update `CLIENT_URL` to your frontend URL
-- Redeploy backend
+After frontend is deployed:
+1. Go to Backend Vercel Project → Settings → Environment Variables
+2. Update `CLIENT_URL` to your frontend URL (e.g., `https://your-frontend.vercel.app`)
+3. Redeploy backend
 
 ---
 
@@ -123,34 +132,26 @@ After frontend is deployed, update backend's `CLIENT_URL` environment variable:
 ### Backend (`server/vercel.json`)
 ```json
 {
-  "functions": {
-    "api/[...path].js": {
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/[...path]"
+      "src": "api/[...path].js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...path].js"
     }
   ]
 }
 ```
 
-### Frontend (`vercel-frontend.json` or use Vercel auto-detection)
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
+### Frontend (Auto-detected by Vercel)
+- Framework: Vite
+- Build: `npm run build`
+- Output: `dist`
 
 ---
 
@@ -172,16 +173,16 @@ vercel --prod
 
 ## Environment Variables Summary
 
-### Backend Project
+### Backend Project (Required)
 - `MONGO_URI` - MongoDB connection string
 - `ADMIN_EMAIL` - Admin login email
 - `ADMIN_PASSWORD` - Admin password
-- `JWT_SECRET` - JWT signing secret
-- `CLIENT_URL` - Frontend URL (for CORS)
+- `JWT_SECRET` - JWT signing secret (min 32 chars)
+- `CLIENT_URL` - Frontend URL (for CORS) - set to `*` initially
 - `NODE_ENV` - Set to `production`
 
-### Frontend Project (Optional)
-- `VITE_API_URL` - Backend API URL (if not hardcoded)
+### Frontend Project (Optional but Recommended)
+- `VITE_API_URL` - Backend API URL (e.g., `https://your-backend.vercel.app/api`)
 
 ---
 
@@ -189,7 +190,7 @@ vercel --prod
 
 1. **Test Backend**: 
    - Visit: `https://your-backend.vercel.app/api/health`
-   - Should return: `{"status":"ok",...}`
+   - Should return: `{"status":"ok","database":"connected",...}`
 
 2. **Test Frontend**:
    - Visit: `https://your-frontend.vercel.app`
@@ -198,28 +199,44 @@ vercel --prod
 3. **Test API Connection**:
    - Try logging in at `/admin/login`
    - Check browser console for API errors
+   - Verify network tab shows requests to backend URL
 
 ---
 
 ## Troubleshooting
 
+### Backend: "No entrypoint found in output directory"
+- **Solution**: Make sure Root Directory is set to `server`
+- **Solution**: Leave Build Command EMPTY
+- **Solution**: Leave Output Directory EMPTY
+- Vercel should auto-detect serverless functions from `api/` folder
+
 ### CORS Errors
 - Ensure `CLIENT_URL` in backend matches frontend URL exactly
+- Or temporarily set `CLIENT_URL=*` to allow all origins
 - Check backend CORS configuration in `server/src/server.js`
 
-### API Not Found
-- Verify `VITE_API_URL` is set correctly
-- Check backend URL is accessible
-- Ensure API routes are working: `https://backend.vercel.app/api/health`
+### API Not Found (404)
+- Verify `VITE_API_URL` is set correctly in frontend
+- Check backend URL is accessible: `https://backend.vercel.app/api/health`
+- Ensure API routes are working
+- Check browser network tab for actual request URL
 
 ### Build Failures
 - **Backend**: Ensure `server/package.json` has all dependencies
 - **Frontend**: Ensure root `package.json` has all dependencies
+- Check Vercel build logs for specific errors
 
-### Timeout Errors
+### Timeout Errors (504)
 - Backend functions have 10s timeout (free tier)
 - Optimize database queries
 - Check MongoDB connection speed
+- Consider upgrading to Vercel Pro for 60s timeout
+
+### Module Not Found Errors
+- Ensure all dependencies are in `server/package.json`
+- Check that `serverless-http` is installed
+- Verify imports are correct
 
 ---
 
@@ -230,6 +247,7 @@ vercel --prod
 ✅ Easier to manage  
 ✅ Can update one without affecting the other  
 ✅ Better for team collaboration  
+✅ Different deployment schedules  
 
 ---
 
@@ -239,4 +257,28 @@ vercel --prod
 - Frontend will be at: `https://your-frontend.vercel.app`
 - Make sure to update CORS settings after both are deployed
 - Keep backend URL in frontend environment variables for easy updates
+- Backend doesn't need a build step - it's pure serverless functions
 
+---
+
+## Step-by-Step Checklist
+
+### Backend Deployment
+- [ ] Create new Vercel project
+- [ ] Set Root Directory to `server`
+- [ ] Leave Build Command empty
+- [ ] Leave Output Directory empty
+- [ ] Add all environment variables
+- [ ] Deploy
+- [ ] Test: `https://your-backend.vercel.app/api/health`
+- [ ] Note backend URL
+
+### Frontend Deployment
+- [ ] Create new Vercel project
+- [ ] Root Directory: `.` (root)
+- [ ] Add `VITE_API_URL` environment variable
+- [ ] Deploy
+- [ ] Test frontend loads
+- [ ] Update backend `CLIENT_URL` with frontend URL
+- [ ] Redeploy backend
+- [ ] Test full integration
