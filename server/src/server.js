@@ -42,11 +42,19 @@ export const createServer = () => {
     /^https:\/\/.*\.vercel\.app$/,
   ];
 
+  // If CLIENT_URL is set to '*' or empty, allow all origins (for separate deployment setup)
+  const allowAllOrigins = !env.CLIENT_URL || env.CLIENT_URL === '*';
+
   app.use(
     cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) {
+          return callback(null, true);
+        }
+        
+        // If allowAllOrigins is true (CLIENT_URL is '*' or empty), allow all
+        if (allowAllOrigins) {
           return callback(null, true);
         }
         

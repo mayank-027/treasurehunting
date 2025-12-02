@@ -1,0 +1,15 @@
+{
+  "buildCommand": "echo 'No build needed for serverless functions'",
+  "functions": {
+    "api/[...path].js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/[...path]"
+    }
+  ]
+}
+
