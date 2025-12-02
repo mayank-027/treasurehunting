@@ -13,12 +13,17 @@ interface QRScannerProps {
   onSuccess: () => void;
 }
 
+type CameraDevice = { id: string; label: string };
+
 const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   const [manualCode, setManualCode] = useState("");
   const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle");
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<CameraDevice[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  const [isCameraLoading, setIsCameraLoading] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanAreaRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +71,11 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   const startCameraScan = async () => {
     if (isScanning) return;
 
+    if (!availableCameras.length && !selectedCameraId) {
+      setCameraError("No camera detected. Please connect a camera or use manual entry.");
+      return;
+    }
+
     try {
       const scannerId = "qr-scanner";
       if (!scanAreaRef.current) {
@@ -76,8 +86,10 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
       const html5QrCode = new Html5Qrcode(scannerId);
       scannerRef.current = html5QrCode;
 
+      const cameraConfig = selectedCameraId ?? { facingMode: { ideal: "environment" } };
+
       await html5QrCode.start(
-        { facingMode: "environment" }, // Use back camera on mobile
+        cameraConfig as any,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -122,8 +134,39 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    Html5Qrcode.getCameras()
+      .then((devices) => {
+        if (!isMounted) return;
+        setAvailableCameras(devices);
+
+        if (devices.length) {
+          const preferredCamera =
+            devices.find((device) => device.label.toLowerCase().includes("back")) ?? devices[0];
+          setSelectedCameraId(preferredCamera.id);
+          setCameraError(null);
+        } else {
+          setCameraError("No camera devices detected. Try manual entry.");
+        }
+      })
+      .catch((err) => {
+        console.error("Camera detection failed:", err);
+        if (isMounted) {
+          setCameraError(
+            "Cannot access camera. Ensure you've granted permissions and are using HTTPS."
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCameraLoading(false);
+        }
+      });
+
     // Cleanup on unmount
     return () => {
+      isMounted = false;
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
         scannerRef.current.clear();
@@ -146,7 +189,31 @@ const QRScanner = ({ teamId, onSuccess }: QRScannerProps) => {
       <div className="space-y-6">
         {/* Camera Scanner */}
         <div>
-          <div className="relative bg-muted rounded-lg overflow-hidden mb-4">
+          <div className="space-y-3 mb-4">
+            {availableCameras.length > 0 && (
+              <div>
+                <Label htmlFor="camera-select">Camera Source</Label>
+                <select
+                  id="camera-select"
+                  className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={selectedCameraId ?? ""}
+                  onChange={(e) => setSelectedCameraId(e.target.value)}
+                  disabled={isScanning}
+                >
+                  {availableCameras.map((camera) => (
+                    <option key={camera.id} value={camera.id}>
+                      {camera.label || `Camera ${camera.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {isCameraLoading && (
+              <p className="text-sm text-muted-foreground">Detecting available cameras...</p>
+            )}
+
+            <div className="relative bg-muted rounded-lg overflow-hidden">
             <div 
               id="qr-scanner"
               ref={scanAreaRef}
