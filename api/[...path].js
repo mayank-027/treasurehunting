@@ -104,7 +104,6 @@ export default async function vercelHandler(req, res) {
 }
 
 export const config = {
-  runtime: "nodejs20.x",
-  memory: 1024,
+  maxDuration: 30,
 };
 
